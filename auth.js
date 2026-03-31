@@ -32,7 +32,7 @@ async function signInWithGoogle() {
     const { error } = await _supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: 'https://listify-frontend-ten.vercel.app/index.html'
+            redirectTo: 'https://listify.vercel.app/index.html'
         }
     });
     if (error) showToast('Google sign-in failed. Try again.', 'error');
@@ -53,7 +53,7 @@ async function sendMagicLink() {
     const { error } = await _supabase.auth.signInWithOtp({
         email,
         options: {
-            emailRedirectTo: 'https://listify-frontend-ten.vercel.app/index.html'
+            emailRedirectTo: window.location.origin + '/index.html'
         }
     });
 
