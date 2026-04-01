@@ -32,7 +32,7 @@ async function signInWithGoogle() {
     const { error } = await _supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: 'https://listify.vercel.app/index.html'
+            redirectTo: 'https://mylistify.vercel.app/index.html'
         }
     });
     if (error) showToast('Google sign-in failed. Try again.', 'error');
