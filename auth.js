@@ -1,127 +1,128 @@
-// ─── Supabase Config ──────────────────────────────────────────
-const SUPABASE_URL = "https://pjofdeahwogiekwwaylh.supabase.co";
-const SUPABASE_KEY = "sb_publishable_XfzNozXAtnBwB9fPFiPHqQ_dC_LlR9e";
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using WebApplication3.Models;
+using Npgsql;
 
-const { createClient } = supabase;
-const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+var builder = WebApplication.CreateBuilder(args);
 
-// ─── Theme ────────────────────────────────────────────────────
-function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('tf-theme', theme);
-}
-
-function toggleTheme() {
-    const current = document.documentElement.getAttribute('data-theme');
-    applyTheme(current === 'dark' ? 'light' : 'dark');
-}
-
-(function () {
-    const saved = localStorage.getItem('tf-theme') || 'dark';
-    applyTheme(saved);
-})();
-
-// ─── Get current session token ────────────────────────────────
-async function getAuthToken() {
-    const { data: { session } } = await _supabase.auth.getSession();
-    return session?.access_token || null;
-}
-
-// ─── Sign in with Google ──────────────────────────────────────
-async function signInWithGoogle() {
-    const { error } = await _supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-            redirectTo: 'https://mylistify.vercel.app/index.html'
-        }
+// 1. CORS - must be registered first
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
     });
-    if (error) showToast('Google sign-in failed. Try again.', 'error');
-}
+});
 
-// ─── Send Magic Link ──────────────────────────────────────────
-async function sendMagicLink() {
-    const email = document.getElementById('emailInput')?.value.trim();
-    if (!email) {
-        showToast('Please enter your email address.', 'error');
-        return;
-    }
+// 2. JWT Authentication
+var supabaseUrl = Environment.GetEnvironmentVariable("Supabase__Url")
+    ?? builder.Configuration["Supabase__Url"]
+    ?? builder.Configuration["Supabase:Url"];
 
-    const btn = document.getElementById('magicBtn');
-    btn.textContent = 'Sending...';
-    btn.disabled = true;
+Console.WriteLine($"Supabase URL: {supabaseUrl}");
 
-    const { error } = await _supabase.auth.signInWithOtp({
-        email,
-        options: {
-            emailRedirectTo: window.location.origin + '/index.html'
-        }
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = supabaseUrl + "/auth/v1";
+        options.MetadataAddress = supabaseUrl + "/auth/v1/.well-known/openid-configuration";
+        options.RequireHttpsMetadata = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(60)
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine("AUTH FAILED: " + context.Exception.Message);
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                Console.WriteLine("TOKEN VALID: " + context.Principal?.FindFirst("sub")?.Value);
+                return Task.CompletedTask;
+            }
+        };
     });
 
-    if (error) {
-        showToast('Failed to send magic link. Try again.', 'error');
-        btn.textContent = 'Send Magic Link';
-        btn.disabled = false;
-    } else {
-        document.getElementById('magicSuccess').style.display = 'flex';
-        btn.style.display = 'none';
+builder.Services.AddAuthorization();
+builder.Services.AddControllers();
+
+// 3. Database
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+Console.WriteLine($"Database URL found: {!string.IsNullOrEmpty(databaseUrl)}");
+
+if (!string.IsNullOrEmpty(databaseUrl))
+{
+    try
+    {
+        var uri = new Uri(databaseUrl);
+        var userInfo = uri.UserInfo.Split(':');
+        var npgsqlBuilder = new NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.Port > 0 ? uri.Port : 5432,
+            Database = uri.AbsolutePath.TrimStart('/'),
+            Username = userInfo[0],
+            Password = userInfo.Length > 1 ? userInfo[1] : "",
+            SslMode = SslMode.Require,
+            TrustServerCertificate = true
+        };
+
+        Console.WriteLine($"Connecting to PostgreSQL at {uri.Host}");
+        builder.Services.AddDbContext<AppDbContext>(options =>
+            options.UseNpgsql(npgsqlBuilder.ConnectionString));
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"DB config error: {ex.Message}");
+        builder.Services.AddDbContext<AppDbContext>(options =>
+            options.UseSqlite("Data Source=todo.db"));
+    }
+}
+else
+{
+    Console.WriteLine("Using SQLite");
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlite("Data Source=todo.db"));
+}
+
+var app = builder.Build();
+
+// Auto-create tables
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.EnsureCreated();
+        Console.WriteLine("Database ready!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Database error: {ex.Message}");
     }
 }
 
-// ─── Sign out ─────────────────────────────────────────────────
-async function signOut() {
-    await _supabase.auth.signOut();
-    window.location.href = 'login.html';
-}
+app.UseStaticFiles();
+app.UseRouting();
 
-// ─── Route guard ──────────────────────────────────────────────
-// On index.html → redirect to login if not authenticated
-// On login.html → redirect to app if already authenticated
-(async function routeGuard() {
-    const { data: { session } } = await _supabase.auth.getSession();
-    const isLoginPage = window.location.pathname.includes('login');
+// CORS must come before Authentication
+app.UseCors("AllowAll");
 
-    if (!session && !isLoginPage) {
-        window.location.href = 'login.html';
-        return;
-    }
+app.UseAuthentication();
+app.UseAuthorization();
 
-    if (session && isLoginPage) {
-        window.location.href = 'index.html';
-        return;
-    }
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
-    // If on app page and logged in, show user info
-    if (session && !isLoginPage) {
-        const user = session.user;
-        const emailEl  = document.getElementById('userEmail');
-        const avatarEl = document.getElementById('userAvatar');
-
-        if (emailEl) emailEl.textContent = user.email || user.user_metadata?.full_name || 'User';
-        if (avatarEl) {
-            const name = user.email || user.user_metadata?.full_name || '?';
-            avatarEl.textContent = name[0].toUpperCase();
-        }
-    }
-})();
-
-// ─── Toast (shared) ───────────────────────────────────────────
-function showToast(message, type = "info") {
-    const existing = document.querySelector('.toast');
-    if (existing) existing.remove();
-
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-
-    requestAnimationFrame(() => {
-        toast.style.opacity   = '1';
-        toast.style.transform = 'translateX(-50%) translateY(0)';
-    });
-
-    setTimeout(() => {
-        toast.style.opacity   = '0';
-        toast.style.transform = 'translateX(-50%) translateY(10px)';
-        setTimeout(() => toast.remove(), 300);
-    }, 3500);
-}
+app.Run();
