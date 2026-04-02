@@ -601,3 +601,59 @@ body {
     [data-theme="dark"]  .theme-toggle::after { content: "Light"; }
     [data-theme="light"] .theme-toggle::after { content: "Dark"; }
 }
+
+/* ─── Priority ───────────────────────────────────────────────── */
+.priority-select {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    padding: 8px 10px;
+    cursor: pointer;
+    outline: none;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.priority-select:focus {
+    border-color: var(--border-focus);
+}
+
+.priority-badge {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.priority-badge.high {
+    background: rgba(239,68,68,0.12);
+    color: #EF4444;
+    border: 1px solid rgba(239,68,68,0.2);
+}
+
+.priority-badge.medium {
+    background: rgba(245,158,11,0.12);
+    color: #F59E0B;
+    border: 1px solid rgba(245,158,11,0.2);
+}
+
+.priority-badge.low {
+    background: rgba(16,185,129,0.12);
+    color: #10B981;
+    border: 1px solid rgba(16,185,129,0.2);
+}
+
+[data-theme="light"] .priority-badge.high {
+    background: rgba(239,68,68,0.08);
+}
+[data-theme="light"] .priority-badge.medium {
+    background: rgba(245,158,11,0.08);
+}
+[data-theme="light"] .priority-badge.low {
+    background: rgba(16,185,129,0.08);
+}
