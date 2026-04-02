@@ -1,4 +1,4 @@
-const API_URL = "https://listify-backend-production-daf2.up.railway.app/api/home";
+const API_URL = "https://localhost:7071/api/home";
 
 // ─── Authenticated fetch helper ───────────────────────────────
 async function authFetch(url, options = {}) {
@@ -46,9 +46,19 @@ async function loadTasks() {
         const list  = document.getElementById('myUL');
         list.innerHTML = '';
 
+        // Sort by priority: High first, then Medium, then Low
+        const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
+        tasks.sort((a, b) => {
+            const pa = priorityOrder[a.priority] ?? 1;
+            const pb = priorityOrder[b.priority] ?? 1;
+            return pa - pb;
+        });
+
         tasks.forEach(task => {
             const li = document.createElement('li');
             if (task.isDone) li.classList.add('checked');
+            const priority = task.priority || 'Medium';
+            const priorityClass = priority.toLowerCase();
 
             li.innerHTML = `
                 <div class="task-check" onclick="toggleTask(${task.id})" title="Toggle complete">
@@ -57,6 +67,7 @@ async function loadTasks() {
                     </svg>
                 </div>
                 <span class="task-text" onclick="toggleTask(${task.id})">${escapeHTML(task.title)}</span>
+                <span class="priority-badge ${priorityClass}">${priority}</span>
                 <button class="delete-btn" onclick="deleteTask(${task.id})" title="Delete" aria-label="Delete task">
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                         <path d="M1.5 1.5L10.5 10.5M10.5 1.5L1.5 10.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
@@ -80,10 +91,12 @@ async function addTask() {
     const title = input.value.trim();
     if (!title) { input.focus(); return; }
 
+    const priority = document.getElementById('prioritySelect')?.value || 'Medium';
+
     try {
         const res = await authFetch(API_URL, {
             method: 'POST',
-            body: JSON.stringify({ title, isDone: false })
+            body: JSON.stringify({ title, isDone: false, priority })
         });
         if (!res || !res.ok) throw new Error();
         input.value = '';
