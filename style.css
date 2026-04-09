@@ -720,3 +720,28 @@ body {
 .task-list li.due-today {
     border-left: 3px solid #F59E0B;
 }
+
+/* ─── Task Edit Input ────────────────────────────────────────── */
+.task-edit-input {
+    background: var(--surface-3);
+    border: 1px solid var(--border-focus);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: var(--text-primary);
+    outline: none;
+    width: 100%;
+    box-shadow: 0 0 0 3px var(--accent-dim);
+    caret-color: var(--accent);
+}
+
+.task-text {
+    cursor: pointer;
+}
+
+.task-text:hover {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 3px;
+}
