@@ -1,4 +1,4 @@
-const API_URL = "https://localhost:7071/api/home";
+const API_URL = "https://listify-backend-production-daf2.up.railway.app/api/home";
 
 // ─── Authenticated fetch helper ───────────────────────────────
 async function authFetch(url, options = {}) {
