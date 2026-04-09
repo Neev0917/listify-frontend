@@ -657,3 +657,66 @@ body {
 [data-theme="light"] .priority-badge.low {
     background: rgba(16,185,129,0.08);
 }
+
+/* ─── Due Date ───────────────────────────────────────────────── */
+.due-date-input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    padding: 8px 10px;
+    cursor: pointer;
+    outline: none;
+    transition: var(--transition);
+    flex-shrink: 0;
+    colorscheme: dark;
+}
+
+[data-theme="light"] .due-date-input {
+    colorscheme: light;
+}
+
+.due-date-input:focus {
+    border-color: var(--border-focus);
+}
+
+.due-badge {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.due-badge.future {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid rgba(59,130,246,0.2);
+}
+
+.due-badge.today {
+    background: rgba(245,158,11,0.12);
+    color: #F59E0B;
+    border: 1px solid rgba(245,158,11,0.3);
+}
+
+.due-badge.overdue {
+    background: var(--danger-dim);
+    color: var(--danger);
+    border: 1px solid rgba(239,68,68,0.3);
+}
+
+/* Overdue task row highlight */
+.task-list li.overdue {
+    border-left: 3px solid var(--danger);
+}
+
+.task-list li.due-today {
+    border-left: 3px solid #F59E0B;
+}
