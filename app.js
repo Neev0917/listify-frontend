@@ -1,4 +1,4 @@
-const API_URL = "https://listify-backend-production-daf2.up.railway.app/api/home";
+const API_URL = "https://localhost:7071/api/home";
 
 // ─── Authenticated fetch helper ───────────────────────────────
 async function authFetch(url, options = {}) {
@@ -35,6 +35,37 @@ function updateUI(tasks) {
     document.getElementById('clearBtn').style.display   = done > 0   ? 'inline' : 'none';
 }
 
+// ─── Due date helper ──────────────────────────────────────────
+function getDueBadge(dueDate) {
+    if (!dueDate) return '';
+    const due = new Date(dueDate);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    const diffDays = Math.round((dueDay - today) / (1000 * 60 * 60 * 24));
+
+    let label, cls;
+    if (diffDays < 0) {
+        label = `Overdue by ${Math.abs(diffDays)}d`;
+        cls = 'overdue';
+    } else if (diffDays === 0) {
+        label = 'Due today';
+        cls = 'today';
+    } else if (diffDays === 1) {
+        label = 'Due tomorrow';
+        cls = 'future';
+    } else if (diffDays <= 7) {
+        label = `Due in ${diffDays}d`;
+        cls = 'future';
+    } else {
+        const options = { month: 'short', day: 'numeric' };
+        label = due.toLocaleDateString('en-US', options);
+        cls = 'future';
+    }
+
+    return { label, cls };
+}
+
 // ─── 1. Load tasks ────────────────────────────────────────────
 async function loadTasks() {
     try {
@@ -60,6 +91,13 @@ async function loadTasks() {
             const priority = task.priority || 'Medium';
             const priorityClass = priority.toLowerCase();
 
+            // Due date badge
+            const dueBadge = getDueBadge(task.dueDate);
+            if (dueBadge) {
+                if (dueBadge.cls === 'overdue' && !task.isDone) li.classList.add('overdue');
+                if (dueBadge.cls === 'today' && !task.isDone) li.classList.add('due-today');
+            }
+
             li.innerHTML = `
                 <div class="task-check" onclick="toggleTask(${task.id})" title="Toggle complete">
                     <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
@@ -67,6 +105,7 @@ async function loadTasks() {
                     </svg>
                 </div>
                 <span class="task-text" onclick="toggleTask(${task.id})">${escapeHTML(task.title)}</span>
+                ${dueBadge ? `<span class="due-badge ${dueBadge.cls}">${dueBadge.label}</span>` : ''}
                 <span class="priority-badge ${priorityClass}">${priority}</span>
                 <button class="delete-btn" onclick="deleteTask(${task.id})" title="Delete" aria-label="Delete task">
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -92,11 +131,13 @@ async function addTask() {
     if (!title) { input.focus(); return; }
 
     const priority = document.getElementById('prioritySelect')?.value || 'Medium';
+    const dueDateInput = document.getElementById('dueDateInput')?.value;
+    const dueDate = dueDateInput ? new Date(dueDateInput).toISOString() : null;
 
     try {
         const res = await authFetch(API_URL, {
             method: 'POST',
-            body: JSON.stringify({ title, isDone: false, priority })
+            body: JSON.stringify({ title, isDone: false, priority, dueDate })
         });
         if (!res || !res.ok) throw new Error();
         input.value = '';
