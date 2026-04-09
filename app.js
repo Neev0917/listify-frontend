@@ -1,4 +1,4 @@
-const API_URL = "https://listify-backend-production-daf2.up.railway.app/api/home";
+const API_URL = "https://localhost:7071/api/home";
 
 // ─── Authenticated fetch helper ───────────────────────────────
 async function authFetch(url, options = {}) {
@@ -104,7 +104,7 @@ async function loadTasks() {
                         <path d="M1.5 5.5L4.5 8.5L9.5 2.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
-                <span class="task-text" onclick="toggleTask(${task.id})">${escapeHTML(task.title)}</span>
+                <span class="task-text" onclick="toggleTask(${task.id})" ondblclick="startEdit(${task.id}, this)" title="Double-click to edit">${escapeHTML(task.title)}</span>
                 ${dueBadge ? `<span class="due-badge ${dueBadge.cls}">${dueBadge.label}</span>` : ''}
                 <span class="priority-badge ${priorityClass}">${priority}</span>
                 <button class="delete-btn" onclick="deleteTask(${task.id})" title="Delete" aria-label="Delete task">
@@ -190,6 +190,58 @@ async function clearCompleted() {
         console.error("Failed to clear completed:", err);
         showToast("Failed to clear completed tasks.", "error");
     }
+}
+
+
+// ─── 6. Edit task title (double-click) ────────────────────────
+function startEdit(id, spanEl) {
+    if (spanEl.querySelector('input')) return; // already editing
+
+    const originalTitle = spanEl.textContent.trim();
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = originalTitle;
+    input.className = 'task-edit-input';
+
+    spanEl.textContent = '';
+    spanEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    // Remove single-click toggle while editing
+    spanEl.onclick = null;
+
+    async function saveEdit() {
+        const newTitle = input.value.trim();
+        if (!newTitle || newTitle === originalTitle) {
+            cancelEdit();
+            return;
+        }
+        try {
+            const res = await authFetch(`${API_URL}/${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ title: newTitle })
+            });
+            if (!res || !res.ok) throw new Error();
+            loadTasks();
+        } catch (err) {
+            showToast('Failed to update task.', 'error');
+            cancelEdit();
+        }
+    }
+
+    function cancelEdit() {
+        spanEl.textContent = originalTitle;
+        spanEl.onclick = () => toggleTask(id);
+    }
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') saveEdit();
+        if (e.key === 'Escape') cancelEdit();
+        e.stopPropagation();
+    });
+
+    input.addEventListener('blur', saveEdit);
 }
 
 // ─── XSS Guard ────────────────────────────────────────────────
