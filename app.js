@@ -104,7 +104,7 @@ async function loadTasks() {
                         <path d="M1.5 5.5L4.5 8.5L9.5 2.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
-                <span class="task-text" onclick="toggleTask(${task.id})" ondblclick="startEdit(${task.id}, this)" title="Double-click to edit">${escapeHTML(task.title)}</span>
+                <span class="task-text" onclick="toggleTask(${task.id})" ondblclick="openEditModal(${task.id}, '${escapeHTML(task.title)}', '${priority}', '${task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''}')" title="Double-click to edit">${escapeHTML(task.title)}</span>
                 ${dueBadge ? `<span class="due-badge ${dueBadge.cls}">${dueBadge.label}</span>` : ''}
                 <span class="priority-badge ${priorityClass}">${priority}</span>
                 <button class="delete-btn" onclick="deleteTask(${task.id})" title="Delete" aria-label="Delete task">
@@ -193,55 +193,111 @@ async function clearCompleted() {
 }
 
 
-// ─── 6. Edit task title (double-click) ────────────────────────
-function startEdit(id, spanEl) {
-    if (spanEl.querySelector('input')) return; // already editing
 
-    const originalTitle = spanEl.textContent.trim();
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = originalTitle;
-    input.className = 'task-edit-input';
+// ─── 7. Open edit modal ───────────────────────────────────────
+function openEditModal(id, title, priority, dueDate) {
+    // Remove existing modal
+    const existing = document.getElementById('editModal');
+    if (existing) existing.remove();
 
-    spanEl.textContent = '';
-    spanEl.appendChild(input);
-    input.focus();
-    input.select();
+    const modal = document.createElement('div');
+    modal.id = 'editModal';
+    modal.className = 'edit-modal-overlay';
+    modal.innerHTML = `
+        <div class="edit-modal">
+            <div class="edit-modal-header">
+                <span class="edit-modal-title">Edit Task</span>
+                <button class="edit-modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="edit-modal-body">
+                <div class="edit-field">
+                    <label>Title</label>
+                    <input type="text" id="editTitle" value="${title}" class="edit-input" />
+                </div>
+                <div class="edit-row">
+                    <div class="edit-field">
+                        <label>Priority</label>
+                        <select id="editPriority" class="edit-select">
+                            <option value="High" ${priority === 'High' ? 'selected' : ''}>🔴 High</option>
+                            <option value="Medium" ${priority === 'Medium' ? 'selected' : ''}>🟡 Medium</option>
+                            <option value="Low" ${priority === 'Low' ? 'selected' : ''}>🟢 Low</option>
+                        </select>
+                    </div>
+                    <div class="edit-field">
+                        <label>Due Date</label>
+                        <input type="date" id="editDueDate" value="${dueDate}" class="edit-input" />
+                    </div>
+                </div>
+            </div>
+            <div class="edit-modal-footer">
+                <button class="edit-cancel-btn" onclick="closeEditModal()">Cancel</button>
+                <button class="edit-clear-date-btn" onclick="clearDueDate(${id})">Remove Date</button>
+                <button class="edit-save-btn" onclick="saveEdit(${id})">Save Changes</button>
+            </div>
+        </div>
+    `;
 
-    // Remove single-click toggle while editing
-    spanEl.onclick = null;
+    document.body.appendChild(modal);
 
-    async function saveEdit() {
-        const newTitle = input.value.trim();
-        if (!newTitle || newTitle === originalTitle) {
-            cancelEdit();
-            return;
-        }
-        try {
-            const res = await authFetch(`${API_URL}/${id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({ title: newTitle })
-            });
-            if (!res || !res.ok) throw new Error();
-            loadTasks();
-        } catch (err) {
-            showToast('Failed to update task.', 'error');
-            cancelEdit();
-        }
-    }
+    // Focus title input
+    setTimeout(() => document.getElementById('editTitle')?.focus(), 50);
 
-    function cancelEdit() {
-        spanEl.textContent = originalTitle;
-        spanEl.onclick = () => toggleTask(id);
-    }
-
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') saveEdit();
-        if (e.key === 'Escape') cancelEdit();
-        e.stopPropagation();
+    // Close on overlay click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeEditModal();
     });
 
-    input.addEventListener('blur', saveEdit);
+    // Close on Escape
+    document.addEventListener('keydown', handleModalKeydown);
+}
+
+function handleModalKeydown(e) {
+    if (e.key === 'Escape') closeEditModal();
+    if (e.key === 'Enter' && e.target.id === 'editTitle') {
+        const modal = document.getElementById('editModal');
+        if (modal) {
+            const id = parseInt(modal.dataset.taskId);
+        }
+    }
+}
+
+function closeEditModal() {
+    const modal = document.getElementById('editModal');
+    if (modal) modal.remove();
+    document.removeEventListener('keydown', handleModalKeydown);
+}
+
+async function saveEdit(id) {
+    const title    = document.getElementById('editTitle')?.value.trim();
+    const priority = document.getElementById('editPriority')?.value;
+    const dueDate  = document.getElementById('editDueDate')?.value;
+
+    if (!title) {
+        showToast('Title cannot be empty.', 'error');
+        return;
+    }
+
+    try {
+        const res = await authFetch(`${API_URL}/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                title,
+                priority,
+                updateDueDate: true,
+                dueDate: dueDate ? new Date(dueDate).toISOString() : null
+            })
+        });
+        if (!res || !res.ok) throw new Error();
+        closeEditModal();
+        loadTasks();
+        showToast('Task updated!', 'success');
+    } catch (err) {
+        showToast('Failed to update task.', 'error');
+    }
+}
+
+async function clearDueDate(id) {
+    document.getElementById('editDueDate').value = '';
 }
 
 // ─── XSS Guard ────────────────────────────────────────────────
