@@ -745,3 +745,228 @@ body {
     text-decoration-style: dotted;
     text-underline-offset: 3px;
 }
+
+/* ─── Clickable badges ───────────────────────────────────────── */
+.clickable {
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.clickable:hover {
+    filter: brightness(1.2);
+    transform: translateY(-1px);
+}
+
+.due-badge.no-date {
+    background: var(--surface-3);
+    color: var(--text-muted);
+    border: 1px dashed var(--border-hover);
+    opacity: 0;
+    transition: var(--transition);
+}
+
+.task-list li:hover .due-badge.no-date {
+    opacity: 1;
+}
+
+/* ─── Inline date picker ─────────────────────────────────────── */
+.inline-date-picker {
+    position: absolute;
+    right: 60px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-focus);
+    border-radius: 9px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 100;
+    box-shadow: var(--shadow-md);
+    animation: fadeUp 0.15s ease both;
+}
+
+.inline-date-input {
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: var(--text-primary);
+    outline: none;
+    colorscheme: dark;
+}
+
+[data-theme="light"] .inline-date-input {
+    colorscheme: light;
+}
+
+.inline-date-remove {
+    background: var(--danger-dim);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 6px;
+    padding: 5px 10px;
+    color: var(--danger);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.inline-date-remove:hover {
+    background: var(--danger);
+    color: white;
+}
+
+.task-list li {
+    position: relative;
+}
+
+/* ─── Edit Modal ─────────────────────────────────────────────── */
+.edit-modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.edit-modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%; max-width: 480px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    animation: slideUp 0.2s ease;
+    overflow: hidden;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.edit-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+}
+
+.edit-modal-title {
+    font-size: 14px; font-weight: 600;
+    color: var(--text-primary);
+}
+
+.edit-modal-close {
+    background: transparent; border: none;
+    color: var(--text-muted); font-size: 20px;
+    cursor: pointer; padding: 0; line-height: 1;
+    transition: color 0.15s;
+}
+.edit-modal-close:hover { color: var(--text-primary); }
+
+.edit-modal-body {
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 16px;
+}
+
+.edit-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+
+.edit-field {
+    display: flex; flex-direction: column; gap: 6px;
+}
+
+.edit-field label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.edit-input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 10px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px; color: var(--text-primary);
+    outline: none;
+    transition: all 0.18s ease;
+    caret-color: var(--accent);
+    colorscheme: dark;
+}
+
+[data-theme="light"] .edit-input { colorscheme: light; }
+
+.edit-input:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.edit-select {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 10px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px; color: var(--text-primary);
+    outline: none;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.edit-select:focus { border-color: var(--border-focus); }
+
+.edit-modal-footer {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 8px; padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+}
+
+.edit-cancel-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 16px;
+    color: var(--text-secondary);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.18s ease;
+}
+.edit-cancel-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+.edit-clear-date-btn {
+    background: var(--danger-dim);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 8px; padding: 9px 16px;
+    color: var(--danger);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.18s ease;
+    margin-right: auto;
+}
+.edit-clear-date-btn:hover { background: var(--danger); color: white; }
+
+.edit-save-btn {
+    background: var(--accent);
+    border: none; border-radius: 8px;
+    padding: 9px 20px;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.18s ease;
+}
+.edit-save-btn:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 0 14px var(--accent-glow);
+}
