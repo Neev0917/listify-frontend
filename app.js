@@ -1,4 +1,5 @@
 const API_URL = "https://listify-backend-production-daf2.up.railway.app/api/home";
+const API_URL = "https://localhost:7071/api/home";
 
 // ─── Authenticated fetch helper ───────────────────────────────
 async function authFetch(url, options = {}) {
@@ -15,6 +16,117 @@ async function authFetch(url, options = {}) {
             'Authorization': `Bearer ${token}`,
             ...(options.headers || {})
         }
+    });
+}
+
+
+// ─── Notifications ────────────────────────────────────────────
+function checkNotifications(tasks) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+
+    const alerts = [];
+
+    tasks.forEach(task => {
+        if (task.isDone || !task.dueDate) return;
+        const due = new Date(task.dueDate);
+        const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+        const diffDays = Math.round((dueDay - today) / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            alerts.push({ task, type: 'overdue', label: `Overdue by ${Math.abs(diffDays)}d` });
+        } else if (diffDays === 0) {
+            alerts.push({ task, type: 'today', label: 'Due today' });
+        } else if (diffDays === 1) {
+            alerts.push({ task, type: 'soon', label: 'Due tomorrow' });
+        }
+    });
+
+    updateNotifBadge(alerts);
+    updateNotifDropdown(alerts);
+    sendBrowserNotifications(alerts);
+}
+
+function updateNotifBadge(alerts) {
+    const badge = document.getElementById('notifBadge');
+    if (!badge) return;
+    if (alerts.length > 0) {
+        badge.textContent = alerts.length > 9 ? '9+' : alerts.length;
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function updateNotifDropdown(alerts) {
+    const list = document.getElementById('notifList');
+    if (!list) return;
+
+    if (alerts.length === 0) {
+        list.innerHTML = '<div class="notif-empty">🎉 All caught up! No pending alerts.</div>';
+        return;
+    }
+
+    list.innerHTML = alerts.map(({ task, type, label }) => `
+        <div class="notif-item">
+            <div class="notif-dot ${type}"></div>
+            <div class="notif-content">
+                <div class="notif-task-title">${escapeHTML(task.title)}</div>
+                <div class="notif-task-sub ${type}">${label} · ${task.priority} priority</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function toggleNotifDropdown() {
+    const dropdown = document.getElementById('notifDropdown');
+    if (!dropdown) return;
+    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    const wrap = document.querySelector('.notif-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+        const dropdown = document.getElementById('notifDropdown');
+        if (dropdown) dropdown.style.display = 'none';
+    }
+});
+
+// ─── Browser Push Notifications ───────────────────────────────
+let browserNotifsShown = false;
+
+async function requestNotifPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+        await Notification.requestPermission();
+    }
+}
+
+function sendBrowserNotifications(alerts) {
+    if (browserNotifsShown) return;
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    if (alerts.length === 0) return;
+
+    browserNotifsShown = true;
+
+    // Send one summary notification
+    const overdueCount = alerts.filter(a => a.type === 'overdue').length;
+    const todayCount   = alerts.filter(a => a.type === 'today').length;
+    const soonCount    = alerts.filter(a => a.type === 'soon').length;
+
+    let body = '';
+    if (overdueCount > 0) body += `${overdueCount} overdue · `;
+    if (todayCount > 0)   body += `${todayCount} due today · `;
+    if (soonCount > 0)    body += `${soonCount} due tomorrow`;
+    body = body.replace(/ · $/, '');
+
+    new Notification('Listify — Task Reminder 🔔', {
+        body,
+        icon: '/favicon.ico',
+        badge: '/favicon.ico'
     });
 }
 
@@ -117,6 +229,7 @@ async function loadTasks() {
         });
 
         updateUI(tasks);
+        checkNotifications(tasks);
 
     } catch (error) {
         console.error("Could not load tasks:", error);
@@ -308,6 +421,8 @@ function escapeHTML(str) {
 }
 
 // ─── Init ─────────────────────────────────────────────────────
+// Request browser notification permission
+requestNotifPermission();
 // Wait for Supabase session to be ready before loading tasks
 _supabase.auth.getSession().then(({ data: { session } }) => {
     if (session) {
